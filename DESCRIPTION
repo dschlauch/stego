@@ -1,0 +1,23 @@
+Package: WESTGO
+Type: Package
+Title: Weighted Similarity Test for Genetic Outliers
+Version: 1.0
+Date: 2016-07-05
+Author: Daniel Schlauch
+Maintainer: Daniel Schlauch <dschlauch@fas.harvard.edu>
+Description: A statistical test for the identification of "genetic outliers" due
+    to population sub-structure or cryptic relationships
+Imports:
+    ggplot2,
+    reshape2,
+    data.table,
+    gtools,
+    grid,
+    foreach,
+    doParallel,
+    tools,
+    hierfstat,
+    assertthat
+License: What license is it under?
+RoxygenNote: 5.0.1
+Suggests: testthat
