@@ -1,47 +1,114 @@
-#' Calculate the similarity matrix
+#' Weighted Similarity Test for Genetic Outliers
+#' 
+#' This function runs the analysis.  A genotype matrix ([0,1] for phased, or [0,1,2] for unphased) is the only required argument.
 #'
 #' 
 #'
 #' @param genotypes data object containing the phased or unphased genotypes by samples
-#' @param cex character expansion for the text
-#' @param mar margin paramaters; vector of length 4 (see \code{\link[graphics]{par}})
+#' @param phased logical defining whether data exists as phased data, as opposed to unphased data
+#' @param groups character specifying grouping of analysis.  Default is to run analysis all at once- one of "all.together", "each.separately" or "pairwise.within.superpop"
+#' @param sampleNames character vector with unique identifiers for each sample
+#' @param labels character covariates, such as population membership.  This is unused if groups is "all.together".
+#' @param super character covariates, such as population membership.  This is used only if groups is "pairwise.within.superpop".
+#' @param minVariants integer specifing a minimum number of occurrences of the minor allele for the variant to be included in analysis.  Default is 5, minimum allowed is 2.
+#' @param blocksize integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)
+#' @param saveResult file to save results output.  Default is no saving (saveResult=NA)
 #'
-#' @return Object containing similarity matrix and other results
-#'
+#' @return List with class "westgo" containing
+#' \item{summary}{Summary statistics, including p-values, FDR, kinship coefficient estimate between all pairs of individuals}
+#' \item{s_matrix_dip}{A matrix of pairwise s statistics between all individuals}
+#' \item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
+#' \item{var_s_dip}{numeric estimate of the variance of pairwise subject test statistics}
+#' \item{var_s_hap}{numeric estimate of the variance of pairwise haploid test statistics. For phased data only}
+#' \item{varcovMat}{A correlation matrix between all individuals}
+#' \item{analysisType}{character indicating what manner the subjects were grouped in the analysis}
+#' \item{pkweightsMean}{numeric value for the whole dataset as a function of the observed allele frequencies}
+#' 
 #' @examples
 #' data(toyGenotypes)
+#' sampleNames <- paste("Sample",1:100)
 #' 
-#' res <- westgo(toyGenotypes)
+#' res <- westgo(toyGenotypes, sampleNames=sampleNames)
 #' plotFromGSM(res, plotname="All Samples")
 #' 
-#' labels <- paste("Group",c(LETTERS[rep(1:5,40)]))
+#' labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
 #' res <- westgo(toyGenotypes, groups="each.separately", labels=labels)
 #' plotFromGSM(res)
 #' 
-#' labels <- paste("Group",c(LETTERS[rep(1:5,20)],LETTERS[rep(6:10,20)]))
-#' super <- c(rep("Super A",100), rep("Super B",100))
+#' labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
+#' super <- c(rep("Super A",50), rep("Super B",50))
 #' res <- westgo(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #' plotFromGSM(res)
 #'
+#' @author Dan Schlauch \email{dschlauch@fas.harvard.edu}
 #' @export
 westgo <- function(genotypes,
-                    diploid=F,
+                    phased=T,
                     groups="all.together",
+                    sampleNames=NULL,
                     labels=NA,
                     super=NA,
                     minVariants=5, 
-                    ldPrune=NA,
-                    computeFST=T,
-                    outputDir='.'){
-
+                    blocksize=NA,
+                    saveResult=NA){
+    
+    
+    
+    if(!is.matrix(genotypes)&&!is.data.frame(genotypes)){
+        stop("genotypes must be matrix-like object")
+    }
+    if(phased==T){
+        if(ncol(genotypes)%%2 == 1){
+            stop("Odd number of columns for phased data.  Perhaps data is unphased.")
+        }
+        if(!is.null(sampleNames)&&length(sampleNames)!=ncol(genotypes)/2){
+            stop("length of sampleNames must be 1/2 of number of columns of genotypes in phased data")
+        }
+        if(max(genotypes)!= 1||min(genotypes)!=0){
+            stop("Non-binary values for phased data")
+        }
+    }
+    if(phased!=T){
+        if(max(genotypes)!= 2||min(genotypes)!=0){
+            stop("Unphased data needs to be in [0,1,2]")
+        }
+        if(!is.null(sampleNames)&&length(sampleNames)!=ncol(genotypes)){
+            stop("length of sampleNames must be equal number of columns of genotypes in unphased data")
+        }
+    }
+    
+    genotypes = tryCatch({
+        as.data.table(genotypes)
+    }, error = function(e) {
+        stop("couldn't coerce genotypes to data.table")
+    }, finally = {
+    } )
+    
+    if (!is.null(sampleNames)){
+        if(phased){
+            colnames(genotypes) <- make.unique(rep(sampleNames,each=2))
+        }else{
+            colnames(genotypes) <- sampleNames
+        }
+    } else {
+        if(is.null(colnames(genotypes))){
+            if(phased){
+                colnames(genotypes) <- make.unique(rep(paste("Sample",1:ncol(genotypes)),each=2))
+            }else{
+                colnames(genotypes) <- paste("Sample",1:ncol(genotypes))
+            }
+        }
+    }
+    
     if (groups=="all.together"){
-        genotypes <- pruneGenotypes(genotypes, ldPrune)
-        results <- calculateSMatrix(gt=genotypes, diploid=diploid, minVariants=5, saveResult="all_together_results.rds")
+        genotypes <- pruneGenotypes(genotypes, blocksize)
+        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult)
         results$analysisType <- groups
         return(results)
     }
     
-    assert_that(length(labels)==ncol(genotypes))
+    numberOfSamples = ifelse(phased, ncol(genotypes)/2,ncol(genotypes))
+    assert_that(length(labels)==numberOfSamples)
     assert_that(length(unique(labels))>1)
     
     results <- list()
@@ -51,17 +118,19 @@ westgo <- function(genotypes,
             print(subpop)
             
             filter <- labels%in%subpop
-            if(diploid){
+            if(phased){
                 filter <- rep(filter,each=2)
             }
-            gt <- pruneGenotypes(genotypes[,filter,with=F], ldPrune)
-            results[[subpop]] <- calculateSMatrix(gt=gt, diploid=diploid, minVariants=minVariants, saveResult="each_separately_results.rds")
+            gt <- pruneGenotypes(genotypes[,filter,with=F], blocksize)
+            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, saveResult=saveResult)
         }
         names(results) <- unique(labels)
         results$analysisType <- groups
         return(results)
     }
-    assert_that(length(super)==ncol(genotypes))
+    assert_that(length(super)==numberOfSamples)
+    assert_that(length(unique(super))>1)
+    
     if (groups=="pairwise.within.superpop"){
         for(continent in unique(super)){
             pairs <- combn(unique(labels[super==continent]),2)
@@ -70,18 +139,18 @@ westgo <- function(genotypes,
                 print(gc())
                 print(pair)
                 filter <- labels%in%pair
-                if(diploid){
+                if(phased){
                     filter <- rep(filter,each=2)
                 }
-                gt <- pruneGenotypes(genotypes[,labels%in%pair,with=F], ldPrune)
+                gt <- pruneGenotypes(genotypes[,labels%in%pair,with=F], blocksize)
                 
                 
-                results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, diploid=diploid, minVariants=minVariants, outputDir=outputDir, saveResult="pairwise_within_superpop_results.rds")
+                results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, saveResult=saveResult)
                 
 #                 if(computeFST){
 #                     fstData <- as.data.frame(t(as.matrix(as.data.frame(gt)[,c(T,F)] + as.data.frame(gt)[,c(F,T)])))
 #                     fstData <- cbind(pop = pop[filterdip], fstData)
-#                     results[[paste(pair,collapse="_")]]$FST <- genet.dist(fstData,diploid=F,method="Fst")
+#                     results[[paste(pair,collapse="_")]]$FST <- genet.dist(fstData,phased=F,method="Fst")
 #                 } 
             }
         }
@@ -92,9 +161,22 @@ westgo <- function(genotypes,
     stop("Something went wrong, no output")    
 }
 
+
+summarizeFromSMatrix <-function(result){
+    result$s_matrix_dip[row(result$s_matrix_dip)>=col(result$s_matrix_dip)] <- NA
+    sStats <- melt(result$s_matrix_dip, na.rm=T)
+    colnames(sStats) <- c("Individual 1","Individual 2", "similarity")
+    sStats <- sStats[order(-sStats$similarity),]
+    sStats$pValue <- 1-pnorm((sStats$similarity-1)/sd(sStats$similarity))
+    sStats$FDR <-p.adjust(sStats$pValue, method="BH")
+    sStats$kinshipEstimate <- (sStats$similarity-1)/(result$pkweightsMean-1)
+    as.data.table(sStats)
+}
+
+
 #' Prune genotypes based on blocks of a specified length
 #'
-#' @param gt data object containing the phased or unphased genotypes by samples
+#' @param gt data object containing the genotypes by samples
 #'
 #' @return Object containing similarity matrix and other results
 #'
@@ -103,10 +185,13 @@ westgo <- function(genotypes,
 #' pruneGenotypes(toyGenotypes)
 #'
 #' @export
-pruneGenotypes <-  function(gt, ldPrune=1){
+pruneGenotypes <-  function(gt, blocksize=1){
     
-    if(is.na(ldPrune)||ldPrune==1){
+    if(is.na(blocksize)||blocksize==1){
         return(gt)
+    }
+    if(!is.numeric(blocksize)||blocksize<1||blocksize>nrow(gt)||blocksize%%1!=0){
+        stop("Block size must be a positive integer less than the number of rows in the genotype data.")
     }
     names(gt) <- make.unique(names(gt))
     numSamples <- ncol(gt)
@@ -119,19 +204,18 @@ pruneGenotypes <-  function(gt, ldPrune=1){
     sumVariants <- rowSums(gt)
     
     # Intelligently LD prune
-    numblocks <- numVariants/ldPrune +1
-    blocks <- rep(1:numblocks, each=ldPrune)[1:numVariants]
+    numblocks <- numVariants/blocksize +1
+    blocks <- rep(1:numblocks, each=blocksize)[1:numVariants]
     
-    system.time(runningWhichMax <- running(sumVariants,width=ldPrune,fun=which.max, by=ldPrune))
-    prunedIndices <- runningWhichMax + seq(0,ldPrune*(length(runningWhichMax)-1),ldPrune)
-    system.time(gt <- gt[prunedIndices])
+    system.time(runningWhichMax <- running(sumVariants,width=blocksize,fun=which.max, by=blocksize))
+    prunedIndices <- runningWhichMax + seq(0,blocksize*(length(runningWhichMax)-1),blocksize)
+    system.time(gt <- gt[prunedIndices,,with=F])
     gt
 }
 
 #' Calculate the similarity matrix
 #'
 #' 
-#'
 #' @param genotypes data object containing the phased or unphased genotypes by samples
 #' @param cex character expansion for the text
 #' @param mar margin paramaters; vector of length 4 (see \code{\link[graphics]{par}})
@@ -143,21 +227,24 @@ pruneGenotypes <-  function(gt, ldPrune=1){
 #' calculateSMatrix(toyGenotypes)
 #'
 #' @export
-calculateSMatrix <- function(gt, diploid=F, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, varcov=T){
+calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, varcov=T){
     
-    numSamples <- ncol(gt)
+    require(data.table)
+    numAlleles <- ifelse(phased, ncol(gt), 2*ncol(gt))
     numVariants <- nrow(gt)
     sumVariants <- rowSums(gt)
     
+    gt <- as.matrix(gt)
     #     # reverse so that MAF<.5
-    invertMinorAllele <- sumVariants>(numSamples/2)
-    gt[invertMinorAllele] <- 1-gt[invertMinorAllele]
-    sumVariants <- rowSums(gt)
-    
+    invertMinorAllele <- sumVariants>(numAlleles/2)
+    if(phased){
+        gt[invertMinorAllele,] <- 1-gt[invertMinorAllele,]
+    } else {
+        gt[invertMinorAllele,] <- 2-gt[invertMinorAllele,]
+    }
     # remove < n variants
     sumVariants <- rowSums(gt)
-    gt <- gt[sumVariants>minVariants,,with=F]
-    gt <- as.matrix(gt)
+    gt <- gt[sumVariants>minVariants,]
     
     print("Number of used variants")
     print(nrow(gt))
@@ -167,9 +254,13 @@ calculateSMatrix <- function(gt, diploid=F, minVariants=5, scaleBySampleAF=F, ou
     if(varcov){
         #         varcovMat <- cov(t(scale(t(gt[,c(T,F)] + gt[,c(F,T)]))),use="pairwise.complete.obs")
         #         varcovMat <- cov(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
-        varcovMat <- cor(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
+        if(phased){
+            varcovMat <- cor(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
+        } else {
+            varcovMat <- cor(gt, use="pairwise.complete.obs")
+        }
     }
-    totalPossiblePairs <- choose(numSamples,2)
+    totalPossiblePairs <- choose(numAlleles,2)
     totalPairs <- choose(sumFilteredVariants,2)
     weights <- totalPossiblePairs/totalPairs
     p <- 1/weights
@@ -182,7 +273,7 @@ calculateSMatrix <- function(gt, diploid=F, minVariants=5, scaleBySampleAF=F, ou
     print(var_s_hap)
     
     # Calculate expected values conditional on kinship
-    pkweightsMean <- mean(((sumFilteredVariants-2)/numSamples)*weights)
+    pkweightsMean <- mean(((sumFilteredVariants-2)/numAlleles)*weights)
     kinships <- seq(0,.25,.001)
     kinshipExpectation <- 1+kinships*(pkweightsMean-1)
     
@@ -201,19 +292,33 @@ calculateSMatrix <- function(gt, diploid=F, minVariants=5, scaleBySampleAF=F, ou
     print(median(s_matrix_hap[row(s_matrix_hap)!=col(s_matrix_hap)]))
     
     estimatedKinship <- (s_matrix_hap-1)/(pkweightsMean-1)
+    popResult <- NULL
+    # Collapse if phased, rename variables if unphased
+    if(phased){
+        s_matrix_dip <- (s_matrix_hap[c(T,F),c(T,F)] + s_matrix_hap[c(F,T),c(T,F)] +s_matrix_hap[c(T,F),c(F,T)] + s_matrix_hap[c(F,T),c(F,T)])/4
+        colnames(s_matrix_dip) <- colnames(gt)[c(T,F)]
+        rownames(s_matrix_dip) <- colnames(gt)[c(T,F)]
+        
+        var_s_dip <- var_s_hap/4
+        popResult <- list(s_matrix_dip=s_matrix_dip, s_matrix_hap=s_matrix_hap, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, var_s_hap=var_s_hap, varcovMat=varcovMat)
+        
+    } else {
+        s_matrix_dip <- s_matrix_hap/4
+        colnames(s_matrix_dip) <- colnames(gt)
+        rownames(s_matrix_dip) <- colnames(gt)
+        
+        var_s_dip <- var_s_hap
+        rm(s_matrix_hap)
+        rm(var_s_hap)
+        popResult <- list(s_matrix_dip=s_matrix_dip, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, varcovMat=varcovMat)
+        
+    }
+    popResult$summary <- summarizeFromSMatrix(popResult)
     
-    # Collapse to diploid
-    s_matrix_dip <- (s_matrix_hap[c(T,F),c(T,F)] + s_matrix_hap[c(F,T),c(T,F)] +s_matrix_hap[c(T,F),c(F,T)] + s_matrix_hap[c(F,T),c(F,T)])/4
-    colnames(s_matrix_dip) <- colnames(gt)[c(T,F)]
-    rownames(s_matrix_dip) <- colnames(gt)[c(T,F)]
-    
-    var_s_dip <- var_s_hap/4
-    
-    
-    popResult <- list(s_matrix_dip=s_matrix_dip, s_matrix_hap=s_matrix_hap, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, var_s_hap=var_s_hap, varcovMat=varcovMat)
     if(!is.na(saveResult)){
         saveRDS(popResult, saveResult)
     }
+    class(popResult) <- "westgo"
     popResult
     
 }

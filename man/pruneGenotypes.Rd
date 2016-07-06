@@ -4,10 +4,10 @@
 \alias{pruneGenotypes}
 \title{Prune genotypes based on blocks of a specified length}
 \usage{
-pruneGenotypes(gt, ldPrune = 1)
+pruneGenotypes(gt, blocksize = 1)
 }
 \arguments{
-\item{gt}{data object containing the phased or unphased genotypes by samples}
+\item{gt}{data object containing the genotypes by samples}
 }
 \value{
 Object containing similarity matrix and other results

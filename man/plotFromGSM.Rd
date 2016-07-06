@@ -4,8 +4,7 @@
 \alias{plotFromGSM}
 \title{Plot the distribution of similarity statistics}
 \usage{
-plotFromGSM(subpop, gsm, var_s, pkweightsMean, plotname = "",
-  outputDir = ".", alphaCutoff = 0.01)
+plotFromGSM(resObj, plotname = "", alphaCutoff = 0.01)
 }
 \arguments{
 \item{genotypes}{data object containing the phased or unphased genotypes by samples}

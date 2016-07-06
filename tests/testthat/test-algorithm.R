@@ -1,0 +1,46 @@
+context("Algorithm runs properly")
+
+data(toyGenotypes)
+data(toyResults)
+
+test_that("algorithm runs on toy data", {
+    expect_error(westgo(NA),"genotypes must be matrix-like object")
+    expect_error(westgo(rnorm(100)),"genotypes must be matrix-like object")
+    expect_error(westgo(matrix(rnorm(1000),ncol=10)),"Non-binary values for phased data")
+    expect_error(westgo(matrix(rbinom(10000,1,.5),ncol=50), phased=F),"Unphased data needs")
+    capture.output(res <- westgo(toyGenotypes))
+    expect_equal(length(res), 7)
+    expect_equal(res, toyResults$toyAllTogether)
+    
+    
+    capture.output(res <- westgo(toyGenotypes[,rep(c(T,F),100),,with=F]+toyGenotypes[,rep(c(F,T),100),with=F], groups="all.together", phased=F))
+    expect_equal(res, toyResults$toyUnphasedAllTogether)
+    
+    labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
+    capture.output(res <- westgo(toyGenotypes, groups="each.separately", labels=labels))
+    expect_equal(length(res), 6)
+    expect_equal(res, toyResults$toyEachSeparately)
+    
+    labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
+    super <- c(rep("Super A",50), rep("Super B",50))
+    capture.output(res <- westgo(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super))
+    expect_equal(length(res), 21)
+    expect_equal(res, toyResults$toyPairwiseWithinSuperpop)
+    
+})
+
+test_that("algorithm throws error on bad data", {
+    labels <- paste("Group",c(LETTERS[rep("A",40)]))
+    expect_error(capture.output(res <- westgo(toyGenotypes, groups="each.separately", labels=labels)))
+    expect_error(capture.output(res <- westgo(NA, groups="each.separately")))
+})
+
+test_that("data is pruned", {
+    expect_equal(pruneGenotypes(toyGenotypes, 1),toyGenotypes)
+    expect_equal(pruneGenotypes(toyGenotypes, NA),toyGenotypes)
+    expect_equal(dim(pruneGenotypes(toyGenotypes, 2)),c(2500,200))
+    expect_equal(dim(pruneGenotypes(toyGenotypes, 100)),c(50,200))
+    expect_error(pruneGenotypes(toyGenotypes, 0),"Block size must be a positive integer less than the number of rows in the genotype data.")
+    expect_error(pruneGenotypes(toyGenotypes, 10000),"Block size must be a positive integer less than the number of rows in the genotype data.")
+    expect_error(pruneGenotypes(toyGenotypes, 2.2),"Block size must be a positive integer less than the number of rows in the genotype data.")
+})

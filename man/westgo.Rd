@@ -2,35 +2,63 @@
 % Please edit documentation in R/WESTGO.R
 \name{westgo}
 \alias{westgo}
-\title{Calculate the similarity matrix}
+\title{Weighted Similarity Test for Genetic Outliers}
 \usage{
-westgo(genotypes, diploid = F, groups = "all.together", labels = NA,
-  super = NA, minVariants = 5, ldPrune = NA, computeFST = T,
-  outputDir = ".")
+westgo(genotypes, phased = T, groups = "all.together", sampleNames = NULL,
+  labels = NA, super = NA, minVariants = 5, blocksize = NA,
+  saveResult = NA)
 }
 \arguments{
 \item{genotypes}{data object containing the phased or unphased genotypes by samples}
 
-\item{cex}{character expansion for the text}
+\item{phased}{logical defining whether data exists as phased data, as opposed to unphased data}
 
-\item{mar}{margin paramaters; vector of length 4 (see \code{\link[graphics]{par}})}
+\item{groups}{character specifying grouping of analysis.  Default is to run analysis all at once- one of "all.together", "each.separately" or "pairwise.within.superpop"}
+
+\item{sampleNames}{character vector with unique identifiers for each sample}
+
+\item{labels}{character covariates, such as population membership.  This is unused if groups is "all.together".}
+
+\item{super}{character covariates, such as population membership.  This is used only if groups is "pairwise.within.superpop".}
+
+\item{minVariants}{integer specifing a minimum number of occurrences of the minor allele for the variant to be included in analysis.  Default is 5, minimum allowed is 2.}
+
+\item{blocksize}{integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)}
+
+\item{saveResult}{file to save results output.  Default is no saving (saveResult=NA)}
 }
 \value{
-Object containing similarity matrix and other results
+List with class "westgo" containing
+\item{summary}{Summary statistics, including p-values, FDR, kinship coefficient estimate between all pairs of individuals}
+\item{s_matrix_dip}{A matrix of pairwise s statistics between all individuals}
+\item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
+\item{var_s_dip}{numeric estimate of the variance of pairwise subject test statistics}
+\item{var_s_hap}{numeric estimate of the variance of pairwise haploid test statistics. For phased data only}
+\item{varcovMat}{A correlation matrix between all individuals}
+\item{analysisType}{character indicating what manner the subjects were grouped in the analysis}
+\item{pkweightsMean}{numeric value for the whole dataset as a function of the observed allele frequencies}
 }
 \description{
-Calculate the similarity matrix
+This function runs the analysis.  A genotype matrix ([0,1] for phased, or [0,1,2] for unphased) is the only required argument.
 }
 \examples{
 data(toyGenotypes)
+sampleNames <- paste("Sample",1:100)
 
-westgo(toyGenotypes)
-labels <- c(rep("Group A",100), rep("Group B",100))
-westgo(toyGenotypes, groups="each.separately", labels=labels)
+res <- westgo(toyGenotypes, sampleNames=sampleNames)
+plotFromGSM(res, plotname="All Samples")
 
-labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
-super <- c(rep("Super A",100), rep("Super B",100))
+labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
+res <- westgo(toyGenotypes, groups="each.separately", labels=labels)
+plotFromGSM(res)
+
+labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
+super <- c(rep("Super A",50), rep("Super B",50))
 res <- westgo(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+plotFromGSM(res)
 
+}
+\author{
+Dan Schlauch \email{dschlauch@fas.harvard.edu}
 }
 
