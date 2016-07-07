@@ -404,4 +404,3 @@ plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){
 
     
 }
-
