@@ -7,17 +7,15 @@ Author: Daniel Schlauch
 Maintainer: Daniel Schlauch <dschlauch@fas.harvard.edu>
 Description: A statistical test for the identification of "genetic outliers" due
     to population sub-structure or cryptic relationships
-Imports: 
+Imports:
 Depends:
     ggplot2,
-    data.table,
     gtools,
-    grid,
-    tools
+    data.table
 License: What license is it under?
 RoxygenNote: 5.0.1
 Suggests: testthat,
     knitr,
-    rmarkdown,
-    assertthat
+    assertthat,
+    rmarkdown
 VignetteBuilder: knitr
