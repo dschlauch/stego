@@ -1,5 +1,5 @@
 ---
-title: "Weighted Similarity Test for Genetic Outliers"
+title: "Similarity TEst for Genetic Outliers (STEGO)"
 author: "Dan Schlauch"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -17,7 +17,7 @@ In order to minimize the effects of genetic confounding on the analysis of high-
 The minimum requirement for running the method is a feature by sample matrix where each row represents a variant and each sample is represented by either a column (for unphased data) or two consecutive columns (for phased data).  The elements in the matrix indicate the count of minor alleles for each variant and subject - [0,1] for phased and [0,1,2] for unphased data.
 
 ```{r, echo=T, results='hide', message=FALSE}
-library(WESTGO)
+library(stego)
 ```
 
 
@@ -31,7 +31,7 @@ dim(toyGenotypes)
 We will include sample names for these 100 individuals and run the standard algorithm
 ```{r, echo=T, results='hide',message=FALSE}
 sampleNames <- paste("Sample",1:100)
-result <- westgo(toyGenotypes, sampleNames=sampleNames)
+result <- stego(toyGenotypes, sampleNames=sampleNames)
 ```
 
 
