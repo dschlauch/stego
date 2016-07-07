@@ -1,0 +1,42 @@
+---
+title: "Weighted Similarity Test for Genetic Outliers"
+author: "Dan Schlauch"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Abstract
+In order to minimize the effects of genetic confounding on the analysis of high-throughput genetic association studies, e.g. (whole-genome) sequencing studies, genome-wide association studies (GWAS), etc., we propose a general framework to assess and to test formally for genetic heterogeneity among study subjects. Even for relatively moderate sample sizes, the proposed testing framework is able to identify study subjects that are genetically too similar, e.g cryptic relationships, or that are genetically too different, e.g. population substructure. The approach is computationally fast, enabling the application to whole-genome sequencing data, and straightforward to implement. Simulation studies illustrate the overall performance of our approach. In an application to the 1,000 genome projects, we outline an analysis/cleaning pipeline that utilizes our approach to formally assess whether study subjects are related and whether population substructure is present. In the analysis of 1,000 Genome Project, our approach revealed studies subjects that are most likely related, but have passed so far standard qc-filters.
+
+## Workflow
+
+The minimum requirement for running the method is a feature by sample matrix where each row represents a variant and each sample is represented by either a column (for unphased data) or two consecutive columns (for phased data).  The elements in the matrix indicate the count of minor alleles for each variant and subject - [0,1] for phased and [0,1,2] for unphased data.
+
+```{r, echo=T, results='hide', message=FALSE}
+library(WESTGO)
+```
+
+
+A toy dataset is available which contains an example study involving a homogenous group of 100 individuals.  This data is considered phased as we have information on each haplotype.  Thus there are 200 columns in this data. 
+
+```{r, echo=T, results='asis'}
+data(toyGenotypes)
+dim(toyGenotypes)
+```
+ 
+We will include sample names for these 100 individuals and run the standard algorithm
+```{r, echo=T, results='hide',message=FALSE}
+sampleNames <- paste("Sample",1:100)
+result <- westgo(toyGenotypes, sampleNames=sampleNames)
+```
+
+
+TODO:
+Print results
+Plot results
+Run different parameters...
+Show some formulas
