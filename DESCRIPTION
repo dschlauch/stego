@@ -10,18 +10,14 @@ Description: A statistical test for the identification of "genetic outliers" due
 Imports: 
 Depends:
     ggplot2,
-    reshape2,
     data.table,
     gtools,
     grid,
-    foreach,
-    doParallel,
-    tools,
-    hierfstat,
-    assertthat
+    tools
 License: What license is it under?
 RoxygenNote: 5.0.1
 Suggests: testthat,
     knitr,
-    rmarkdown
+    rmarkdown,
+    assertthat
 VignetteBuilder: knitr
