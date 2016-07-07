@@ -28,21 +28,21 @@
 #' data(toyGenotypes)
 #' sampleNames <- paste("Sample",1:100)
 #' 
-#' res <- stego(toyGenotypes, sampleNames=sampleNames)
+#' res <- run_stegotoyGenotypes, sampleNames=sampleNames)
 #' plot(res, plotname="All Samples")
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
-#' res <- stego(toyGenotypes, groups="each.separately", labels=labels)
+#' res <- run_stegotoyGenotypes, groups="each.separately", labels=labels)
 #' plot(res)
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
 #' super <- c(rep("Super A",50), rep("Super B",50))
-#' res <- stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #' plotFromGSM(res)
 #'
 #' @author Dan Schlauch \email{dschlauch@fas.harvard.edu}
 #' @export
-stego <- function(genotypes,
+run_stego <- function(genotypes,
                     phased=T,
                     groups="all.together",
                     sampleNames=NULL,
@@ -338,13 +338,13 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
 #' @examples
 #' data(toyGenotypes)
 #' 
-#' stego(toyGenotypes)
+#' run_stegotoyGenotypes)
 #' labels <- c(rep("Group A",100), rep("Group B",100))
-#' stego(toyGenotypes, groups="each.separately", labels=labels)
+#' run_stegotoyGenotypes, groups="each.separately", labels=labels)
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
 #' super <- c(rep("Super A",100), rep("Super B",100))
-#' res <- stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #'
 #' @export
 plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){

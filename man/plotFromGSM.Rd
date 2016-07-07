@@ -22,13 +22,13 @@ Plot the distribution of similarity statistics
 \examples{
 data(toyGenotypes)
 
-stego(toyGenotypes)
+run_stegotoyGenotypes)
 labels <- c(rep("Group A",100), rep("Group B",100))
-stego(toyGenotypes, groups="each.separately", labels=labels)
+run_stegotoyGenotypes, groups="each.separately", labels=labels)
 
 labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
 super <- c(rep("Super A",100), rep("Super B",100))
-res <- stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 
 }
 
