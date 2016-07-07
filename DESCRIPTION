@@ -8,6 +8,7 @@ Maintainer: Daniel Schlauch <dschlauch@fas.harvard.edu>
 Description: A statistical test for the identification of "genetic outliers" due
     to population sub-structure or cryptic relationships
 Imports:
+Depends:
     ggplot2,
     reshape2,
     data.table,

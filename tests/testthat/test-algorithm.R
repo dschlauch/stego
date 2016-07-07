@@ -9,7 +9,7 @@ test_that("algorithm runs on toy data", {
     expect_error(westgo(matrix(rnorm(1000),ncol=10)),"Non-binary values for phased data")
     expect_error(westgo(matrix(rbinom(10000,1,.5),ncol=50), phased=F),"Unphased data needs")
     capture.output(res <- westgo(toyGenotypes))
-    expect_equal(length(res), 7)
+    expect_equal(length(res), 8)
     expect_equal(res, toyResults$toyAllTogether)
     
     
