@@ -1,24 +1,24 @@
-\name{WESTGO-package}
-\alias{WESTGO-package}
-\alias{WESTGO}
+\name{stego-package}
+\alias{stego-package}
+\alias{stego}
 \docType{package}
 \title{
-\packageTitle{WESTGO}
+\packageTitle{stego}
 }
 \description{
-\packageDescription{WESTGO}
+\packageDescription{stego}
 }
 \details{
 
 The DESCRIPTION file:
-\packageDESCRIPTION{WESTGO}
-\packageIndices{WESTGO}
+\packageDESCRIPTION{stego}
+\packageIndices{stego}
 ~~ An overview of how to use the package, including the most important functions ~~
 }
 \author{
-\packageAuthor{WESTGO}
+\packageAuthor{stego}
 
-Maintainer: \packageMaintainer{WESTGO}
+Maintainer: \packageMaintainer{stego}
 }
 \references{
 ~~ Literature or other references for background information ~~

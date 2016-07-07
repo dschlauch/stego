@@ -1,4 +1,4 @@
-#' Weighted Similarity Test for Genetic Outliers
+#' Similarity Test for Genetic Outliers
 #' 
 #' This function runs the analysis.  A genotype matrix ([0,1] for phased, or [0,1,2] for unphased) is the only required argument.
 #'
@@ -14,7 +14,7 @@
 #' @param blocksize integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)
 #' @param saveResult file to save results output.  Default is no saving (saveResult=NA)
 #'
-#' @return List with class "westgo" containing
+#' @return List with class "stego" containing
 #' \item{summary}{Summary statistics, including p-values, FDR, kinship coefficient estimate between all pairs of individuals}
 #' \item{s_matrix_dip}{A matrix of pairwise s statistics between all individuals}
 #' \item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
@@ -28,21 +28,21 @@
 #' data(toyGenotypes)
 #' sampleNames <- paste("Sample",1:100)
 #' 
-#' res <- westgo(toyGenotypes, sampleNames=sampleNames)
+#' res <- stego(toyGenotypes, sampleNames=sampleNames)
 #' plotFromGSM(res, plotname="All Samples")
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
-#' res <- westgo(toyGenotypes, groups="each.separately", labels=labels)
+#' res <- stego(toyGenotypes, groups="each.separately", labels=labels)
 #' plotFromGSM(res)
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
 #' super <- c(rep("Super A",50), rep("Super B",50))
-#' res <- westgo(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' res <- stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #' plotFromGSM(res)
 #'
 #' @author Dan Schlauch \email{dschlauch@fas.harvard.edu}
 #' @export
-westgo <- function(genotypes,
+stego <- function(genotypes,
                     phased=T,
                     groups="all.together",
                     sampleNames=NULL,
@@ -318,7 +318,7 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     if(!is.na(saveResult)){
         saveRDS(popResult, saveResult)
     }
-    class(popResult) <- "westgo"
+    class(popResult) <- "stego"
     popResult
     
 }
@@ -336,13 +336,13 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
 #' @examples
 #' data(toyGenotypes)
 #' 
-#' westgo(toyGenotypes)
+#' stego(toyGenotypes)
 #' labels <- c(rep("Group A",100), rep("Group B",100))
-#' westgo(toyGenotypes, groups="each.separately", labels=labels)
+#' stego(toyGenotypes, groups="each.separately", labels=labels)
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
 #' super <- c(rep("Super A",100), rep("Super B",100))
-#' res <- westgo(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' res <- stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #'
 #' @export
 plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){

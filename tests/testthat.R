@@ -1,4 +1,4 @@
 library(testthat)
-library(WESTGO)
+library(stego)
 
-test_check("WESTGO")
+test_check("stego")

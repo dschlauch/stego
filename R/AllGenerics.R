@@ -1,26 +1,26 @@
-#' summary.westgo
+#' summary.stego
 #'
-#' summarizes the results of a WESTGO analysis
+#' summarizes the results of a stego analysis
 #'
-#' @param object an object of class "westgo"
+#' @param object an object of class "stego"
 #' @param ... further arguments passed to or from other methods.
 #' @keywords keywords
 #' @export
-#' @return Summary description of westgo S3 object
-summary.westgo <- function(object, ...){
+#' @return Summary description of stego S3 object
+summary.stego <- function(object, ...){
     cat("Summary")
 }
-#' print.westgo
+#' print.stego
 #'
-#' prints the results of a WESTGO analysis
+#' prints the results of a stego analysis
 #'
-#' @param object an object of class "westgo"
+#' @param object an object of class "stego"
 #' @param ... further arguments passed to or from other methods.
 #' @keywords keywords
 #' @export
-#' @return Summary description of westgo S3 object
-print.westgo <- function(object, ...){
-    cat(" WESTGO Analysis\n\n")
+#' @return Summary description of stego S3 object
+print.stego <- function(object, ...){
+    cat(" stego Analysis\n\n")
     cat(ifelse(is.null(object$var_s_hap),"Unphased data\n","Phased data\n"))
     cat(paste(ncol(object$s_matrix_dip), "individuals\n\n"))
     cat("Top related Pairs:\n")
