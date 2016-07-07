@@ -29,11 +29,11 @@
 #' sampleNames <- paste("Sample",1:100)
 #' 
 #' res <- stego(toyGenotypes, sampleNames=sampleNames)
-#' plotFromGSM(res, plotname="All Samples")
+#' plot(res, plotname="All Samples")
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
 #' res <- stego(toyGenotypes, groups="each.separately", labels=labels)
-#' plotFromGSM(res)
+#' plot(res)
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
 #' super <- c(rep("Super A",50), rep("Super B",50))
@@ -108,8 +108,8 @@ stego <- function(genotypes,
     }
     
     numberOfSamples = ifelse(phased, ncol(genotypes)/2,ncol(genotypes))
-    assert_that(length(labels)==numberOfSamples)
-    assert_that(length(unique(labels))>1)
+    assertthat::assert_that(length(labels)==numberOfSamples)
+    assertthat::assert_that(length(unique(labels))>1)
     
     results <- list()
     if (groups=="each.separately"){
@@ -126,10 +126,11 @@ stego <- function(genotypes,
         }
         names(results) <- unique(labels)
         results$analysisType <- groups
+        class(results) <- "stego"
         return(results)
     }
-    assert_that(length(super)==numberOfSamples)
-    assert_that(length(unique(super))>1)
+    assertthat::assert_that(length(super)==numberOfSamples)
+    assertthat::assert_that(length(unique(super))>1)
     
     if (groups=="pairwise.within.superpop"){
         for(continent in unique(super)){
@@ -155,6 +156,7 @@ stego <- function(genotypes,
             }
         }
         results$analysisType <- groups
+        class(results) <- "stego"
         return(results)
     }
     
@@ -349,7 +351,46 @@ plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){
     if(is.null(resObj$analysisType)||resObj$analysisType=="all.together"){
         gsm <- resObj$s_matrix_dip
         var_s <- resObj$var_s_dip
-        pkweightsMean <- resObj$pkweightsMean        
+        pkweightsMean <- resObj$pkweightsMean
+        
+        print(mean(gsm[row(gsm)!=col(gsm)]))
+        print(median(gsm[row(gsm)!=col(gsm)]))
+        num_comparisons_dip <- choose(ncol(gsm),2)
+        sample_IDs <- rownames(gsm)
+        bonferroni_cutoff_dip <- qnorm((1-alphaCutoff/2)^(1/num_comparisons_dip), sd=sqrt(var_s)) + 1
+        
+        topValuesDip <- sort(gsm[row(gsm)>col(gsm)], decreasing=T)
+        topValuesKinship <- (topValuesDip-1)/(pkweightsMean-1)
+        
+        # Display only those that are above the cutoff and among the top 5
+        label_cutoff <- max(bonferroni_cutoff_dip, topValuesDip[1])
+        
+        pairs <- outer(sample_IDs, sample_IDs, paste)
+        plotData <- data.frame(values=gsm[row(gsm)>col(gsm)], pairs=paste0("  ",pairs[row(pairs)>col(pairs)]))
+        minDip <- min(plotData$values)
+        maxDip <- max(plotData$values)#ifelse(max(plotData$values)>bonferroni_cutoff_dip,max(plotData$values),NA)
+        xmin <- min(minDip, 1-(maxDip-1)*.5)
+        xmax <- maxDip + (maxDip-minDip)*.4
+        dipPlot <- ggplot(plotData, aes(values)) + 
+            geom_histogram(color="blue",bins=40,fill=I("blue")) + 
+            ggtitle(plotname)  + xlab("Similarity score") + 
+            #         scale_x_continuous(expand=c(.4,0))+#
+            xlim(xmin, xmax) +
+            theme_classic() +
+            theme(plot.title = element_text(rel(2)), axis.title.x = element_text(size = rel(1)), axis.title.y = element_blank(), axis.text.y=element_blank()) + 
+            
+            geom_vline(xintercept = bonferroni_cutoff_dip, color="red", linetype="longdash") + 
+            geom_vline(data=subset(plotData, (values == maxDip & values>bonferroni_cutoff_dip)),aes(xintercept = values), color="blue", linetype="dotted") + 
+            geom_vline(xintercept = median(gsm[row(gsm)!=col(gsm)]), color="black", linetype=1) + 
+            
+            geom_text(data=subset(plotData, values >= label_cutoff), aes(values,label=pairs), y=0, angle = 80, hjust=0, size=rel(3)) +
+            geom_text(data=subset(plotData, (values == maxDip & values>bonferroni_cutoff_dip)), x=maxDip, y=Inf, label=paste0("hat(phi)==", round(topValuesKinship[1],3),"  "),parse = TRUE, color="blue", angle = 0, size = 6, vjust = 2, hjust = 0) +
+            
+            #         annotate("text", x=bonferroni_cutoff_dip, y=Inf, label=paste0("alpha==",format(alphaCutoff/num_comparisons_dip, digits=1)),parse = TRUE, color="red", angle = 0, size = 6, vjust = 2, hjust = 1) +
+            #         annotate("text", x=bonferroni_cutoff_dip, y=Inf, label=paste0("alpha "),parse = TRUE, color="red", angle = 0, size = 6, vjust = 2, hjust = 1.5) +
+            annotate("text", x=median(gsm[row(gsm)!=col(gsm)]), y=Inf, label=paste0("m=",round(median(gsm[row(gsm)!=col(gsm)]),3)," "), color="black", angle = 0, size=rel(3), vjust=1.5, hjust = 1) 
+        
+        dipPlot
     } else {
         numPlots <- length(resObj)-1
         columns <- floor(sqrt(numPlots))+1
@@ -358,48 +399,9 @@ plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){
         plots <- lapply(seq_len(length(resObj)-1), function(i){
             plotFromGSM(resObj=resObj[[i]], plotname=names(resObj)[i])
         })
-        do.call("grid.arrange", c(plots, ncol=columns))
+        do.call(gridExtra::grid.arrange, c(plots, ncol=columns))
     }
 
-    print(mean(gsm[row(gsm)!=col(gsm)]))
-    print(median(gsm[row(gsm)!=col(gsm)]))
-    num_comparisons_dip <- choose(ncol(gsm),2)
-    sample_IDs <- rownames(gsm)
-    bonferroni_cutoff_dip <- qnorm((1-alphaCutoff/2)^(1/num_comparisons_dip), sd=sqrt(var_s)) + 1
-    
-    topValuesDip <- sort(gsm[row(gsm)>col(gsm)], decreasing=T)
-    topValuesKinship <- (topValuesDip-1)/(pkweightsMean-1)
-    
-    # Display only those that are above the cutoff and among the top 5
-    label_cutoff <- max(bonferroni_cutoff_dip, topValuesDip[1])
-    
-    pairs <- outer(sample_IDs, sample_IDs, paste)
-    plotData <- data.frame(values=gsm[row(gsm)>col(gsm)], pairs=paste0("  ",pairs[row(pairs)>col(pairs)]))
-    minDip <- min(plotData$values)
-    maxDip <- max(plotData$values)#ifelse(max(plotData$values)>bonferroni_cutoff_dip,max(plotData$values),NA)
-    xmin <- min(minDip, 1-(maxDip-1)*.5)
-    xmax <- maxDip + (maxDip-minDip)*.4
-    dipPlot <- ggplot(plotData, aes(values)) + 
-        geom_histogram(color="blue",bins=40,fill=I("blue")) + 
-        ggtitle(plotname)  + xlab("Similarity score") + 
-        #         scale_x_continuous(expand=c(.4,0))+#
-        xlim(xmin, xmax) +
-        theme_classic() +
-        theme(plot.title = element_text(rel(2)), axis.title.x = element_text(size = rel(1)), axis.title.y = element_blank(), axis.text.y=element_blank()) + 
-        
-        geom_vline(xintercept = bonferroni_cutoff_dip, color="red", linetype="longdash") + 
-        geom_vline(data=subset(plotData, (values == maxDip & values>bonferroni_cutoff_dip)),aes(xintercept = values), color="blue", linetype="dotted") + 
-        geom_vline(xintercept = median(gsm[row(gsm)!=col(gsm)]), color="black", linetype=1) + 
-        
-        geom_text(data=subset(plotData, values >= label_cutoff), aes(values,label=pairs), y=0, angle = 80, hjust=0, size=rel(3)) +
-        geom_text(data=subset(plotData, (values == maxDip & values>bonferroni_cutoff_dip)), x=maxDip, y=Inf, label=paste0("hat(phi)==", round(topValuesKinship[1],3),"  "),parse = TRUE, color="blue", angle = 0, size = 6, vjust = 2, hjust = 0) +
-        
-        #         annotate("text", x=bonferroni_cutoff_dip, y=Inf, label=paste0("alpha==",format(alphaCutoff/num_comparisons_dip, digits=1)),parse = TRUE, color="red", angle = 0, size = 6, vjust = 2, hjust = 1) +
-        #         annotate("text", x=bonferroni_cutoff_dip, y=Inf, label=paste0("alpha "),parse = TRUE, color="red", angle = 0, size = 6, vjust = 2, hjust = 1.5) +
-        annotate("text", x=median(gsm[row(gsm)!=col(gsm)]), y=Inf, label=paste0("m=",round(median(gsm[row(gsm)!=col(gsm)]),3)," "), color="black", angle = 0, size=rel(3), vjust=1.5, hjust = 1) 
-    
-    
-    dipPlot    
     
 }
 

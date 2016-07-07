@@ -8,6 +8,8 @@ Maintainer: Daniel Schlauch <dschlauch@fas.harvard.edu>
 Description: A statistical test for the identification of "genetic outliers" due
     to population sub-structure or cryptic relationships that exploits the differential informativeness of variants by allele frequency.
 Imports:
+    gridExtra,
+    assertthat
 Depends:
     ggplot2,
     gtools,
@@ -16,6 +18,5 @@ License: What license is it under?
 RoxygenNote: 5.0.1
 Suggests: testthat,
     knitr,
-    assertthat,
     rmarkdown
 VignetteBuilder: knitr

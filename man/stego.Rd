@@ -46,11 +46,11 @@ data(toyGenotypes)
 sampleNames <- paste("Sample",1:100)
 
 res <- stego(toyGenotypes, sampleNames=sampleNames)
-plotFromGSM(res, plotname="All Samples")
+plot(res, plotname="All Samples")
 
 labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
 res <- stego(toyGenotypes, groups="each.separately", labels=labels)
-plotFromGSM(res)
+plot(res)
 
 labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
 super <- c(rep("Super A",50), rep("Super B",50))

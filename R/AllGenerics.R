@@ -26,3 +26,16 @@ print.stego <- function(object, ...){
     cat("Top related Pairs:\n")
     print(object$summary[1:5])
 }
+
+#' plot.stego
+#'
+#' plots the results of a stego analysis
+#'
+#' @param object an object of class "stego"
+#' @param ... further arguments passed to or from other methods.
+#' @keywords keywords
+#' @export
+#' @return Summary description of stego S3 object
+plot.stego <- function(object, ...){
+    plotFromGSM(object, ...)
+}
