@@ -8,22 +8,22 @@ test_that("algorithm runs on toy data", {
     expect_error(run_stego(rnorm(100)),"genotypes must be matrix-like object")
     expect_error(run_stego(matrix(rnorm(1000),ncol=10)),"Non-binary values for phased data")
     expect_error(run_stego(matrix(rbinom(10000,1,.5),ncol=50), phased=F),"Unphased data needs")
-    capture.output(res <- run_stego(toyGenotypes))
-    expect_equal(length(res), 8)
+    capture.output(res <- run_stego(toyGenotypes,varcov=T))
+    expect_equal(length(res), 10)
     expect_equal(res, toyResults$toyAllTogether)
     
     
-    capture.output(res <- run_stego(toyGenotypes[,rep(c(T,F),100),,with=F]+toyGenotypes[,rep(c(F,T),100),with=F], groups="all.together", phased=F))
+    capture.output(res <- run_stego(toyGenotypes[,rep(c(T,F),100),,with=F]+toyGenotypes[,rep(c(F,T),100),with=F], groups="all.together", phased=F, varcov=T))
     expect_equal(res, toyResults$toyUnphasedAllTogether)
     
     labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
-    capture.output(res <- run_stego(toyGenotypes, groups="each.separately", labels=labels))
+    capture.output(res <- run_stego(toyGenotypes, groups="each.separately", labels=labels, varcov=T))
     expect_equal(length(res), 6)
     expect_equal(res, toyResults$toyEachSeparately)
     
     labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
     super <- c(rep("Super A",50), rep("Super B",50))
-    capture.output(res <- run_stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super))
+    capture.output(res <- run_stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super, varcov=T))
     expect_equal(length(res), 21)
     expect_equal(res, toyResults$toyPairwiseWithinSuperpop)
     

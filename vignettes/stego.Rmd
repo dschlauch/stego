@@ -1,5 +1,5 @@
 ---
-title: "Similarity TEst for Genetic Outliers (STEGO)"
+title: "Similarity Test for Estimating Genetic Outliers (STEGO)"
 author: "Dan Schlauch"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -31,7 +31,7 @@ dim(toyGenotypes)
 We will include sample names for these 100 individuals and run the standard algorithm
 ```{r, echo=T, results='hide',message=FALSE}
 sampleNames <- paste("Sample",1:100)
-result <- stego(toyGenotypes, sampleNames=sampleNames)
+result <- run_stego(toyGenotypes, sampleNames=sampleNames)
 ```
 
 

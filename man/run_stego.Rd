@@ -6,7 +6,7 @@
 \usage{
 run_stego(genotypes, phased = T, groups = "all.together",
   sampleNames = NULL, labels = NA, super = NA, minVariants = 5,
-  blocksize = NA, saveResult = NA)
+  blocksize = NA, varcov = F, saveResult = NA, verbose = F)
 }
 \arguments{
 \item{genotypes}{data object containing the phased or unphased genotypes by samples}
@@ -25,7 +25,11 @@ run_stego(genotypes, phased = T, groups = "all.together",
 
 \item{blocksize}{integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)}
 
+\item{varcov}{logical indicating whether to additionally compute the variance-covariance matrix.  Default is False.  Increases the computation time.}
+
 \item{saveResult}{file to save results output.  Default is no saving (saveResult=NA)}
+
+\item{verbose}{logical indicating whether to output status updates during analysis run}
 }
 \value{
 List with class "stego" containing
@@ -34,7 +38,7 @@ List with class "stego" containing
 \item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
 \item{var_s_dip}{numeric estimate of the variance of pairwise subject test statistics}
 \item{var_s_hap}{numeric estimate of the variance of pairwise haploid test statistics. For phased data only}
-\item{varcovMat}{A correlation matrix between all individuals}
+\item{varcovMat}{if varcov=T is used, A correlation matrix between all individuals}
 \item{analysisType}{character indicating what manner the subjects were grouped in the analysis}
 \item{pkweightsMean}{numeric value for the whole dataset as a function of the observed allele frequencies}
 }
@@ -45,7 +49,7 @@ This function runs the analysis.  A genotype matrix ([0,1] for phased, or [0,1,2
 data(toyGenotypes)
 sampleNames <- paste("Sample",1:100)
 
-res <- run_stegotoyGenotypes, sampleNames=sampleNames)
+res <- run_stego(toyGenotypes, sampleNames=sampleNames)
 plot(res, plotname="All Samples")
 
 labels <- paste("Group",c(LETTERS[rep(1:5,20)]))

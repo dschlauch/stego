@@ -12,7 +12,9 @@
 #' @param super character covariates, such as population membership.  This is used only if groups is "pairwise.within.superpop".
 #' @param minVariants integer specifing a minimum number of occurrences of the minor allele for the variant to be included in analysis.  Default is 5, minimum allowed is 2.
 #' @param blocksize integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)
+#' @param varcov logical indicating whether to additionally compute the variance-covariance matrix.  Default is False.  Increases the computation time.
 #' @param saveResult file to save results output.  Default is no saving (saveResult=NA)
+#' @param verbose logical indicating whether to output status updates during analysis run
 #'
 #' @return List with class "stego" containing
 #' \item{summary}{Summary statistics, including p-values, FDR, kinship coefficient estimate between all pairs of individuals}
@@ -20,7 +22,7 @@
 #' \item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
 #' \item{var_s_dip}{numeric estimate of the variance of pairwise subject test statistics}
 #' \item{var_s_hap}{numeric estimate of the variance of pairwise haploid test statistics. For phased data only}
-#' \item{varcovMat}{A correlation matrix between all individuals}
+#' \item{varcovMat}{if varcov=T is used, A correlation matrix between all individuals}
 #' \item{analysisType}{character indicating what manner the subjects were grouped in the analysis}
 #' \item{pkweightsMean}{numeric value for the whole dataset as a function of the observed allele frequencies}
 #' 
@@ -28,7 +30,7 @@
 #' data(toyGenotypes)
 #' sampleNames <- paste("Sample",1:100)
 #' 
-#' res <- run_stegotoyGenotypes, sampleNames=sampleNames)
+#' res <- run_stego(toyGenotypes, sampleNames=sampleNames)
 #' plot(res, plotname="All Samples")
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
@@ -50,9 +52,15 @@ run_stego <- function(genotypes,
                     super=NA,
                     minVariants=5, 
                     blocksize=NA,
-                    saveResult=NA){
+                    varcov=F,
+                    saveResult=NA,
+                    verbose=F){
     
     
+    
+    if(verbose){
+        print("Preparing analysis...")
+    }
     
     if(!is.matrix(genotypes)&&!is.data.frame(genotypes)){
         stop("genotypes must be matrix-like object")
@@ -102,7 +110,11 @@ run_stego <- function(genotypes,
     
     if (groups=="all.together"){
         genotypes <- pruneGenotypes(genotypes, blocksize)
-        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult)
+        if(verbose){
+            print(paste("Running STEGO on", nrow(genotypes), "genes and", length(sampleNames)," samples."))
+        }
+        
+        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult, varcov=varcov, verbose=verbose)
         results$analysisType <- groups
         return(results)
     }
@@ -114,15 +126,16 @@ run_stego <- function(genotypes,
     results <- list()
     if (groups=="each.separately"){
         for(subpop in unique(labels)){
-            print(gc())
-            print(subpop)
+            if(verbose){
+                print(paste("Computing on population:",subpop))
+            }
             
             filter <- labels%in%subpop
             if(phased){
                 filter <- rep(filter,each=2)
             }
             gt <- pruneGenotypes(genotypes[,filter,with=F], blocksize)
-            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, saveResult=saveResult)
+            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, varcov=varcov, saveResult=saveResult, verbose=verbose)
         }
         names(results) <- unique(labels)
         results$analysisType <- groups
@@ -137,8 +150,10 @@ run_stego <- function(genotypes,
             pairs <- combn(unique(labels[super==continent]),2)
             for(i in seq_len(ncol(pairs))){
                 pair <- pairs[,i]
-                print(gc())
-                print(pair)
+                if(verbose){
+                    print(paste("Computing on populations:",paste(pairs, collapse=",")))
+                }
+                
                 filter <- labels%in%pair
                 if(phased){
                     filter <- rep(filter,each=2)
@@ -146,7 +161,7 @@ run_stego <- function(genotypes,
                 gt <- pruneGenotypes(genotypes[,labels%in%pair,with=F], blocksize)
                 
                 
-                results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, saveResult=saveResult)
+                results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, varcov=varcov, saveResult=saveResult, verbose=verbose)
                 
 #                 if(computeFST){
 #                     fstData <- as.data.frame(t(as.matrix(as.data.frame(gt)[,c(T,F)] + as.data.frame(gt)[,c(F,T)])))
@@ -164,12 +179,13 @@ run_stego <- function(genotypes,
 }
 
 
-summarizeFromSMatrix <-function(result){
+kinshipsFromSMatrix <-function(result){
     result$s_matrix_dip[row(result$s_matrix_dip)>=col(result$s_matrix_dip)] <- NA
     sStats <- melt(result$s_matrix_dip, na.rm=T)
     colnames(sStats) <- c("Individual 1","Individual 2", "similarity")
     sStats <- sStats[order(-sStats$similarity),]
     sStats$pValue <- 1-pnorm((sStats$similarity-1)/sd(sStats$similarity))
+    sStats$bonferroniPValue <-p.adjust(sStats$pValue, method="bonferroni")
     sStats$FDR <-p.adjust(sStats$pValue, method="BH")
     sStats$kinshipEstimate <- (sStats$similarity-1)/(result$pkweightsMean-1)
     as.data.table(sStats)
@@ -229,7 +245,7 @@ pruneGenotypes <-  function(gt, blocksize=1){
 #' calculateSMatrix(toyGenotypes)
 #'
 #' @export
-calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, varcov=T){
+calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, varcov=F, verbose=F){
     
     require(data.table)
     numAlleles <- ifelse(phased, ncol(gt), 2*ncol(gt))
@@ -248,14 +264,13 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     sumVariants <- rowSums(gt)
     gt <- gt[sumVariants>minVariants,]
     
-    print("Number of used variants")
-    print(nrow(gt))
     numFilteredVariants <- nrow(gt)
     sumFilteredVariants <- rowSums(gt)
     varcovMat <- NULL
     if(varcov){
-        #         varcovMat <- cov(t(scale(t(gt[,c(T,F)] + gt[,c(F,T)]))),use="pairwise.complete.obs")
-        #         varcovMat <- cov(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
+        if(verbose){
+            print("Computing variance-covariance matrix...")
+        }
         if(phased){
             varcovMat <- cor(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
         } else {
@@ -271,8 +286,6 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     # recalculated variance 3/23/16
     var_s_hap <- sum(weights-1)/(numFilteredVariants^2)
     
-    print("variance of s (haploid)")
-    print(var_s_hap)
     
     # Calculate expected values conditional on kinship
     pkweightsMean <- mean(((sumFilteredVariants-2)/numAlleles)*weights)
@@ -290,8 +303,8 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     colnames(s_matrix_hap) <- colnames(gt)
     rownames(s_matrix_hap) <- colnames(gt)
     
-    print(mean(s_matrix_hap[row(s_matrix_hap)!=col(s_matrix_hap)]))
-    print(median(s_matrix_hap[row(s_matrix_hap)!=col(s_matrix_hap)]))
+#     print(mean(s_matrix_hap[row(s_matrix_hap)!=col(s_matrix_hap)]))
+#     print(median(s_matrix_hap[row(s_matrix_hap)!=col(s_matrix_hap)]))
     
     estimatedKinship <- (s_matrix_hap-1)/(pkweightsMean-1)
     popResult <- NULL
@@ -315,7 +328,10 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
         popResult <- list(s_matrix_dip=s_matrix_dip, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, varcovMat=varcovMat)
         
     }
-    popResult$summary <- summarizeFromSMatrix(popResult)
+    popResult$kinships <- kinshipsFromSMatrix(popResult)
+    s_vector <- popResult$s_matrix_dip[row(popResult$s_matrix_dip)>col(popResult$s_matrix_dip)]
+    popResult$structurePValue <- ks.test((s_vector-1)/sd(s_vector), "pnorm", alternative = c("less"))$p.value
+    popResult$crypticPValue <- popResult$kinships$bonferroniPValue[1]
     
     if(!is.na(saveResult)){
         saveRDS(popResult, saveResult)
@@ -330,8 +346,7 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
 #' 
 #'
 #' @param genotypes data object containing the phased or unphased genotypes by samples
-#' @param cex character expansion for the text
-#' @param mar margin paramaters; vector of length 4 (see \code{\link[graphics]{par}})
+#' @param plotname title of the plot
 #'
 #' @return Object containing similarity matrix and other results
 #'
@@ -353,8 +368,8 @@ plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){
         var_s <- resObj$var_s_dip
         pkweightsMean <- resObj$pkweightsMean
         
-        print(mean(gsm[row(gsm)!=col(gsm)]))
-        print(median(gsm[row(gsm)!=col(gsm)]))
+        #         print(mean(gsm[row(gsm)!=col(gsm)]))
+        #         print(median(gsm[row(gsm)!=col(gsm)]))
         num_comparisons_dip <- choose(ncol(gsm),2)
         sample_IDs <- rownames(gsm)
         bonferroni_cutoff_dip <- qnorm((1-alphaCutoff/2)^(1/num_comparisons_dip), sd=sqrt(var_s)) + 1
@@ -395,12 +410,82 @@ plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){
         numPlots <- length(resObj)-1
         columns <- floor(sqrt(numPlots))+1
         rows <- ceiling(numPlots/columns)
-#         par(mfrow=c(rows,columns))
+        #         par(mfrow=c(rows,columns))
         plots <- lapply(seq_len(length(resObj)-1), function(i){
             plotFromGSM(resObj=resObj[[i]], plotname=names(resObj)[i])
         })
         do.call(gridExtra::grid.arrange, c(plots, ncol=columns))
     }
+}
 
-    
+#' P-value for test of Population Structure
+#' 
+#' Get the population structure p-values from a stego object.  This is a test of the null hypotheses that the data is derived a homogeneous population.
+#'
+#' 
+#'
+#' @param stego a stego result object
+#'
+#' @return p-value for test or a list a p-values from each group
+#'
+#' @examples
+#' data(toyGenotypes)
+#' 
+#' run_stegotoyGenotypes)
+#' labels <- c(rep("Group A",100), rep("Group B",100))
+#' run_stegotoyGenotypes, groups="each.separately", labels=labels)
+#' 
+#' labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
+#' super <- c(rep("Super A",100), rep("Super B",100))
+#' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' structurePValues(res)
+#' @export
+structurePValues <- function(stego){
+    if(is.null(stego$analysisType)||stego$analysisType=="all.together"){
+        return(stego$structurePValue)
+    } else {
+        groups <- names(stego)
+        groups <- groups[which(groups!="analysisType")]
+        pvals <- lapply(groups, function(x){
+            stego[[x]]$structurePValue
+        })
+        names(pvals) <- groups
+        unlist(pvals)
+    }
+}
+
+#' P-value for test of Cryptic Relatedness
+#' 
+#' Get the cryptic relatedness p-values from a stego object.  This is a test of the null hypotheses that the data is derived a homogeneous population.
+#'
+#' 
+#'
+#' @param stego a stego result object
+#'
+#' @return p-value for test or a list a p-values from each group
+#'
+#' @examples
+#' data(toyGenotypes)
+#' 
+#' run_stegotoyGenotypes)
+#' labels <- c(rep("Group A",100), rep("Group B",100))
+#' run_stegotoyGenotypes, groups="each.separately", labels=labels)
+#' 
+#' labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
+#' super <- c(rep("Super A",100), rep("Super B",100))
+#' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' crypticPValues(res)
+#' @export
+crypticPValues <- function(stego){
+    if(is.null(stego$analysisType)||stego$analysisType=="all.together"){
+        return(stego$crypticPValue)
+    } else {
+        groups <- names(stego)
+        groups <- groups[which(groups!="analysisType")]
+        pvals <- lapply(groups, function(x){
+            stego[[x]]$crypticPValue
+        })
+        names(pvals) <- groups
+        unlist(pvals)
+    }
 }

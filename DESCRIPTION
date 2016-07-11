@@ -1,12 +1,13 @@
 Package: stego
 Type: Package
-Title: Similarity test for genetic outliers
+Title: Similarity Test for Estimation of Genetic Outliers
 Version: 1.0
 Date: 2016-07-05
 Author: Daniel Schlauch
 Maintainer: Daniel Schlauch <dschlauch@fas.harvard.edu>
 Description: A statistical test for the identification of "genetic outliers" due
-    to population sub-structure or cryptic relationships that exploits the differential informativeness of variants by allele frequency.
+    to population sub-structure or cryptic relationships that exploits the 
+    differential informativeness of variants by allele frequency.
 Imports:
     gridExtra,
     assertthat
@@ -14,7 +15,7 @@ Depends:
     ggplot2,
     gtools,
     data.table
-License: What license is it under?
+License: GPL-2
 RoxygenNote: 5.0.1
 Suggests: testthat,
     knitr,

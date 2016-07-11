@@ -6,7 +6,7 @@
 \usage{
 calculateSMatrix(gt, sampleNames = sampleNames, phased = T,
   minVariants = 5, scaleBySampleAF = F, outputDir = ".",
-  saveResult = NA, varcov = T)
+  saveResult = NA, varcov = F, verbose = F)
 }
 \arguments{
 \item{genotypes}{data object containing the phased or unphased genotypes by samples}
