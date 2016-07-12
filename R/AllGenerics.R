@@ -54,5 +54,5 @@ print.stego <- function(object, ...){
 #' @export
 #' @return Summary description of stego S3 object
 plot.stego <- function(object, ...){
-    plotFromGSM(object, ...)
+    plotStegoHist(object, ...)
 }

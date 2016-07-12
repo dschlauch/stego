@@ -93,20 +93,23 @@ run_stego <- function(genotypes,
     } )
     
     if (!is.null(sampleNames)){
-        if(phased){
-            colnames(genotypes) <- make.unique(rep(sampleNames,each=2))
+        if(phased && length(sampleNames)==ncol(genotypes)/2){
+            sampleNames <- make.unique(rep(sampleNames,each=2))
         }else{
-            colnames(genotypes) <- sampleNames
+            # Do nothing, sampleNames is already good
         }
     } else {
         if(is.null(colnames(genotypes))){
             if(phased){
-                colnames(genotypes) <- make.unique(rep(paste("Sample",1:ncol(genotypes)),each=2))
+                sampleNames <- make.unique(rep(paste("Sample",1:ncol(genotypes)),each=2))
             }else{
-                colnames(genotypes) <- paste("Sample",1:ncol(genotypes))
+                sampleNames <- paste("Sample",1:ncol(genotypes))
             }
+        } else {
+            sampleNames <- colnames(genotypes)
         }
     }
+    colnames(genotypes) <- sampleNames
     
     if (groups=="all.together"){
         genotypes <- pruneGenotypes(genotypes, blocksize)
@@ -116,6 +119,12 @@ run_stego <- function(genotypes,
         
         results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult, varcov=varcov, verbose=verbose)
         results$analysisType <- groups
+        results$labels <- labels
+        results$super <- super
+        results$minVariants <- minVariants
+        results$blocksize <- blocksize
+        results$sampleNames <- sampleNames
+        class(results) <- "stego"
         return(results)
     }
     
@@ -139,6 +148,11 @@ run_stego <- function(genotypes,
         }
         names(results) <- unique(labels)
         results$analysisType <- groups
+        results$labels <- labels
+        results$super <- super
+        results$minVariants <- minVariants
+        results$blocksize <- blocksize
+        results$sampleNames <- sampleNames
         class(results) <- "stego"
         return(results)
     }
@@ -171,6 +185,11 @@ run_stego <- function(genotypes,
             }
         }
         results$analysisType <- groups
+        results$labels <- labels
+        results$super <- super
+        results$minVariants <- minVariants
+        results$blocksize <- blocksize
+        results$sampleNames <- sampleNames
         class(results) <- "stego"
         return(results)
     }
@@ -362,7 +381,7 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
 #' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #'
 #' @export
-plotFromGSM <- function(resObj, plotname="", alphaCutoff=.01){
+plotStegoHist <- function(resObj, plotname="", alphaCutoff=.01){
     if(is.null(resObj$analysisType)||resObj$analysisType=="all.together"){
         gsm <- resObj$s_matrix_dip
         var_s <- resObj$var_s_dip
@@ -489,3 +508,33 @@ crypticPValues <- function(stego){
         unlist(pvals)
     }
 }
+
+#' Plot the distribution of similarity statistics
+#'
+#' 
+#'
+#' @param genotypes data object containing the phased or unphased genotypes by samples
+#' @param plotname title of the plot
+#'
+#' @return Object containing similarity matrix and other results
+#'
+#' @examples
+#' data(toyGenotypes)
+#' 
+#' run_stegotoyGenotypes)
+#' labels <- c(rep("Group A",100), rep("Group B",100))
+#' run_stegotoyGenotypes, groups="each.separately", labels=labels)
+#' 
+#' labels <- paste("Group",c(LETTERS[rep(1:4,25)],LETTERS[rep(5:8,25)]))
+#' super <- c(rep("Super A",100), rep("Super B",100))
+#' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#'
+#' @export
+plotStegoHeatmap <- function(resObj, plotname="", ...){
+    if(is.null(resObj$analysisType)||resObj$analysisType=="all.together"){
+        # Needs sample names for colorbars
+    } else {
+        # Can't plot for each.separately or pairwise...
+    }
+}
+
