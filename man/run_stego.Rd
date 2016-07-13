@@ -6,7 +6,8 @@
 \usage{
 run_stego(genotypes, phased = T, groups = "all.together",
   sampleNames = NULL, labels = NA, super = NA, minVariants = 5,
-  blocksize = NA, varcov = F, saveResult = NA, verbose = F)
+  blocksize = NA, simFun = NA, saveResult = NA, verbose = F,
+  cores = NULL)
 }
 \arguments{
 \item{genotypes}{data object containing the phased or unphased genotypes by samples}
@@ -25,7 +26,7 @@ run_stego(genotypes, phased = T, groups = "all.together",
 
 \item{blocksize}{integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)}
 
-\item{varcov}{logical indicating whether to additionally compute the variance-covariance matrix.  Default is False.  Increases the computation time.}
+\item{simFun}{function for similarity comparision, such as cor or cov.  Default is null.}
 
 \item{saveResult}{file to save results output.  Default is no saving (saveResult=NA)}
 
@@ -38,7 +39,7 @@ List with class "stego" containing
 \item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
 \item{var_s_dip}{numeric estimate of the variance of pairwise subject test statistics}
 \item{var_s_hap}{numeric estimate of the variance of pairwise haploid test statistics. For phased data only}
-\item{varcovMat}{if varcov=T is used, A correlation matrix between all individuals}
+\item{simMat}{if simFun is used, A similarity matrix between all individuals}
 \item{analysisType}{character indicating what manner the subjects were grouped in the analysis}
 \item{pkweightsMean}{numeric value for the whole dataset as a function of the observed allele frequencies}
 }

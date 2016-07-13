@@ -12,7 +12,7 @@
 #' @param super character covariates, such as population membership.  This is used only if groups is "pairwise.within.superpop".
 #' @param minVariants integer specifing a minimum number of occurrences of the minor allele for the variant to be included in analysis.  Default is 5, minimum allowed is 2.
 #' @param blocksize integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)
-#' @param varcov logical indicating whether to additionally compute the variance-covariance matrix.  Default is False.  Increases the computation time.
+#' @param simFun function for similarity comparision, such as cor or cov.  Default is null.
 #' @param saveResult file to save results output.  Default is no saving (saveResult=NA)
 #' @param verbose logical indicating whether to output status updates during analysis run
 #'
@@ -22,7 +22,7 @@
 #' \item{s_matrix_hap}{For phased data only, a matrix of pairwise s statistics between all haplotypes}
 #' \item{var_s_dip}{numeric estimate of the variance of pairwise subject test statistics}
 #' \item{var_s_hap}{numeric estimate of the variance of pairwise haploid test statistics. For phased data only}
-#' \item{varcovMat}{if varcov=T is used, A correlation matrix between all individuals}
+#' \item{simMat}{if simFun is used, A similarity matrix between all individuals}
 #' \item{analysisType}{character indicating what manner the subjects were grouped in the analysis}
 #' \item{pkweightsMean}{numeric value for the whole dataset as a function of the observed allele frequencies}
 #' 
@@ -52,9 +52,10 @@ run_stego <- function(genotypes,
                     super=NA,
                     minVariants=5, 
                     blocksize=NA,
-                    varcov=F,
+                    simFun=NA,
                     saveResult=NA,
-                    verbose=F){
+                    verbose=F,
+                    cores=NULL){
     
     
     
@@ -117,7 +118,7 @@ run_stego <- function(genotypes,
             print(paste("Running STEGO on", nrow(genotypes), "genes and", length(sampleNames)," samples."))
         }
         
-        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult, varcov=varcov, verbose=verbose)
+        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult, simFun=simFun, verbose=verbose)
         results$analysisType <- groups
         results$labels <- labels
         results$super <- super
@@ -144,7 +145,7 @@ run_stego <- function(genotypes,
                 filter <- rep(filter,each=2)
             }
             gt <- pruneGenotypes(genotypes[,filter,with=F], blocksize)
-            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, varcov=varcov, saveResult=saveResult, verbose=verbose)
+            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, simFun=simFun, saveResult=saveResult, verbose=verbose)
         }
         names(results) <- unique(labels)
         results$analysisType <- groups
@@ -160,29 +161,33 @@ run_stego <- function(genotypes,
     assertthat::assert_that(length(unique(super))>1)
     
     if (groups=="pairwise.within.superpop"){
-        for(continent in unique(super)){
-            pairs <- combn(unique(labels[super==continent]),2)
-            for(i in seq_len(ncol(pairs))){
-                pair <- pairs[,i]
-                if(verbose){
-                    print(paste("Computing on populations:",paste(pairs, collapse=",")))
-                }
-                
-                filter <- labels%in%pair
-                if(phased){
-                    filter <- rep(filter,each=2)
-                }
-                gt <- pruneGenotypes(genotypes[,labels%in%pair,with=F], blocksize)
-                
-                
-                results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, varcov=varcov, saveResult=saveResult, verbose=verbose)
-                
+        
+        
+        pairs <- do.call(cbind, lapply(unique(super), function(x){
+            combn(unique(labels[super==x]),2)
+        }))
+        
+        
+        for(i in seq_len(ncol(pairs))){
+            pair <- pairs[,i]
+            if(verbose){
+                print(paste("Computing on populations:",paste(pair, collapse=",")))
+            }
+            
+            filter <- labels%in%pair
+            if(phased){
+                filter <- rep(filter,each=2)
+            }
+            gt <- pruneGenotypes(genotypes[,filter,with=F], blocksize)
+            
+            
+            results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, simFun=simFun, saveResult=saveResult, verbose=verbose)
+            
 #                 if(computeFST){
 #                     fstData <- as.data.frame(t(as.matrix(as.data.frame(gt)[,c(T,F)] + as.data.frame(gt)[,c(F,T)])))
 #                     fstData <- cbind(pop = pop[filterdip], fstData)
 #                     results[[paste(pair,collapse="_")]]$FST <- genet.dist(fstData,phased=F,method="Fst")
 #                 } 
-            }
         }
         results$analysisType <- groups
         results$labels <- labels
@@ -264,7 +269,7 @@ pruneGenotypes <-  function(gt, blocksize=1){
 #' calculateSMatrix(toyGenotypes)
 #'
 #' @export
-calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, varcov=F, verbose=F){
+calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, simFun=NULL, verbose=F){
     
     require(data.table)
     numAlleles <- ifelse(phased, ncol(gt), 2*ncol(gt))
@@ -285,15 +290,15 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     
     numFilteredVariants <- nrow(gt)
     sumFilteredVariants <- rowSums(gt)
-    varcovMat <- NULL
-    if(varcov){
+    simMat <- NULL
+    if(!is.null(simFun)){
         if(verbose){
-            print("Computing variance-covariance matrix...")
+            print("Computing supplied similarity function matrix...")
         }
         if(phased){
-            varcovMat <- cor(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
+            simMat <- simFun(gt[,c(T,F)] + gt[,c(F,T)],use="pairwise.complete.obs")
         } else {
-            varcovMat <- cor(gt, use="pairwise.complete.obs")
+            simMat <- simFun(gt, use="pairwise.complete.obs")
         }
     }
     totalPossiblePairs <- choose(numAlleles,2)
@@ -334,7 +339,7 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
         rownames(s_matrix_dip) <- colnames(gt)[c(T,F)]
         
         var_s_dip <- var_s_hap/4
-        popResult <- list(s_matrix_dip=s_matrix_dip, s_matrix_hap=s_matrix_hap, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, var_s_hap=var_s_hap, varcovMat=varcovMat)
+        popResult <- list(s_matrix_dip=s_matrix_dip, s_matrix_hap=s_matrix_hap, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, var_s_hap=var_s_hap, simMat=simMat)
         
     } else {
         s_matrix_dip <- s_matrix_hap/4
@@ -344,7 +349,7 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
         var_s_dip <- var_s_hap
         rm(s_matrix_hap)
         rm(var_s_hap)
-        popResult <- list(s_matrix_dip=s_matrix_dip, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, varcovMat=varcovMat)
+        popResult <- list(s_matrix_dip=s_matrix_dip, pkweightsMean=pkweightsMean, var_s_dip=var_s_dip, simMat=simMat)
         
     }
     popResult$kinships <- kinshipsFromSMatrix(popResult)
