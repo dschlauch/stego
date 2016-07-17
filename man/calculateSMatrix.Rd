@@ -5,8 +5,8 @@
 \title{Calculate the similarity matrix}
 \usage{
 calculateSMatrix(gt, sampleNames = sampleNames, phased = T,
-  minVariants = 5, scaleBySampleAF = F, outputDir = ".",
-  saveResult = NA, simFun = NULL, verbose = F)
+  minVariants = 5, scaleBySampleAF = F, outputDir = ".", saveDir = NA,
+  saveFile = NA, simFun = NULL, verbose = F)
 }
 \arguments{
 \item{genotypes}{data object containing the phased or unphased genotypes by samples}

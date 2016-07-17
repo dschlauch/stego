@@ -6,7 +6,7 @@
 \usage{
 run_stego(genotypes, phased = T, groups = "all.together",
   sampleNames = NULL, labels = NA, super = NA, minVariants = 5,
-  blocksize = NA, simFun = NA, saveResult = NA, verbose = F,
+  blocksize = NA, simFun = NULL, saveDir = NA, verbose = F,
   cores = NULL)
 }
 \arguments{
@@ -28,7 +28,7 @@ run_stego(genotypes, phased = T, groups = "all.together",
 
 \item{simFun}{function for similarity comparision, such as cor or cov.  Default is null.}
 
-\item{saveResult}{file to save results output.  Default is no saving (saveResult=NA)}
+\item{saveDir}{file to save results output.  Default is no saving (saveDir=NA)}
 
 \item{verbose}{logical indicating whether to output status updates during analysis run}
 }
@@ -59,7 +59,7 @@ plot(res)
 
 labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
 super <- c(rep("Super A",50), rep("Super B",50))
-res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+res <- run_stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 plotFromGSM(res)
 
 }

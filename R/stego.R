@@ -13,7 +13,7 @@
 #' @param minVariants integer specifing a minimum number of occurrences of the minor allele for the variant to be included in analysis.  Default is 5, minimum allowed is 2.
 #' @param blocksize integer specifying the number of consecutive rows in the data matrix to be considered LD blocks.  One variant will be chosen from each block in the analysis.  Default is NA (no LD pruning, equivalent to blocksize=1)
 #' @param simFun function for similarity comparision, such as cor or cov.  Default is null.
-#' @param saveResult file to save results output.  Default is no saving (saveResult=NA)
+#' @param saveDir file to save results output.  Default is no saving (saveDir=NA)
 #' @param verbose logical indicating whether to output status updates during analysis run
 #'
 #' @return List with class "stego" containing
@@ -39,7 +39,7 @@
 #' 
 #' labels <- paste("Group",c(LETTERS[rep(1:5,10)],LETTERS[rep(6:10,10)]))
 #' super <- c(rep("Super A",50), rep("Super B",50))
-#' res <- run_stegotoyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
+#' res <- run_stego(toyGenotypes, groups="pairwise.within.superpop", labels=labels, super=super)
 #' plotFromGSM(res)
 #'
 #' @author Dan Schlauch \email{dschlauch@fas.harvard.edu}
@@ -52,8 +52,8 @@ run_stego <- function(genotypes,
                     super=NA,
                     minVariants=5, 
                     blocksize=NA,
-                    simFun=NA,
-                    saveResult=NA,
+                    simFun=NULL,
+                    saveDir=NA,
                     verbose=F,
                     cores=NULL){
     
@@ -118,7 +118,7 @@ run_stego <- function(genotypes,
             print(paste("Running STEGO on", nrow(genotypes), "genes and", length(sampleNames)," samples."))
         }
         
-        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveResult=saveResult, simFun=simFun, verbose=verbose)
+        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveDir=saveDir, simFun=simFun, verbose=verbose)
         results$analysisType <- groups
         results$labels <- labels
         results$super <- super
@@ -145,7 +145,7 @@ run_stego <- function(genotypes,
                 filter <- rep(filter,each=2)
             }
             gt <- pruneGenotypes(genotypes[,filter,with=F], blocksize)
-            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, simFun=simFun, saveResult=saveResult, verbose=verbose)
+            results[[subpop]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, simFun=simFun, saveDir=saveDir, verbose=verbose)
         }
         names(results) <- unique(labels)
         results$analysisType <- groups
@@ -180,8 +180,10 @@ run_stego <- function(genotypes,
             }
             gt <- pruneGenotypes(genotypes[,filter,with=F], blocksize)
             
-            
-            results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, simFun=simFun, saveResult=saveResult, verbose=verbose)
+            if (!is.na(saveDir)){
+                saveFile <- paste(pair, collapse="-")
+            }
+            results[[paste(pair,collapse="_")]] <- calculateSMatrix(gt=gt, phased=phased, minVariants=minVariants, outputDir=outputDir, simFun=simFun, saveDir=saveDir, saveFile=saveFile, verbose=verbose)
             
 #                 if(computeFST){
 #                     fstData <- as.data.frame(t(as.matrix(as.data.frame(gt)[,c(T,F)] + as.data.frame(gt)[,c(F,T)])))
@@ -269,7 +271,7 @@ pruneGenotypes <-  function(gt, blocksize=1){
 #' calculateSMatrix(toyGenotypes)
 #'
 #' @export
-calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveResult=NA, simFun=NULL, verbose=F){
+calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=5, scaleBySampleAF=F, outputDir=".", saveDir=NA, saveFile=NA, simFun=NULL, verbose=F){
     
     require(data.table)
     numAlleles <- ifelse(phased, ncol(gt), 2*ncol(gt))
@@ -357,8 +359,8 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     popResult$structurePValue <- ks.test((s_vector-1)/sd(s_vector), "pnorm", alternative = c("less"))$p.value
     popResult$crypticPValue <- popResult$kinships$bonferroniPValue[1]
     
-    if(!is.na(saveResult)){
-        saveRDS(popResult, saveResult)
+    if(!is.na(saveDir)){
+        saveRDS(popResult, file=paste0(saveDir,"/",saveFile,".rds"))
     }
     class(popResult) <- "stego"
     popResult
@@ -436,7 +438,7 @@ plotStegoHist <- function(resObj, plotname="", alphaCutoff=.01){
         rows <- ceiling(numPlots/columns)
         #         par(mfrow=c(rows,columns))
         plots <- lapply(seq_len(length(resObj)-1), function(i){
-            plotFromGSM(resObj=resObj[[i]], plotname=names(resObj)[i])
+            plotStegoHist(resObj=resObj[[i]], plotname=names(resObj)[i])
         })
         do.call(gridExtra::grid.arrange, c(plots, ncol=columns))
     }
