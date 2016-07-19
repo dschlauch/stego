@@ -118,7 +118,7 @@ run_stego <- function(genotypes,
             print(paste("Running STEGO on", nrow(genotypes), "genes and", length(sampleNames)," samples."))
         }
         
-        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=5, saveDir=saveDir, simFun=simFun, verbose=verbose)
+        results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=minVariants, saveDir=saveDir, simFun=simFun, verbose=verbose)
         results$analysisType <- groups
         results$labels <- labels
         results$super <- super
