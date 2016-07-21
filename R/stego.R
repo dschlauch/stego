@@ -115,7 +115,7 @@ run_stego <- function(genotypes,
     if (groups=="all.together"){
         genotypes <- pruneGenotypes(genotypes, blocksize)
         if(verbose){
-            print(paste("Running STEGO on", nrow(genotypes), "genes and", length(sampleNames)," samples."))
+            print(paste("Running STEGO on", nrow(genotypes), "variants and", length(sampleNames)," samples."))
         }
         
         results <- calculateSMatrix(gt=genotypes, phased=phased, minVariants=minVariants, saveDir=saveDir, simFun=simFun, verbose=verbose)
@@ -125,6 +125,7 @@ run_stego <- function(genotypes,
         results$minVariants <- minVariants
         results$blocksize <- blocksize
         results$sampleNames <- sampleNames
+        results$numVariants <- nrow(genotypes)
         class(results) <- "stego"
         return(results)
     }
@@ -154,6 +155,7 @@ run_stego <- function(genotypes,
         results$minVariants <- minVariants
         results$blocksize <- blocksize
         results$sampleNames <- sampleNames
+        results$numVariants <- nrow(genotypes)
         class(results) <- "stego"
         return(results)
     }
@@ -197,6 +199,7 @@ run_stego <- function(genotypes,
         results$minVariants <- minVariants
         results$blocksize <- blocksize
         results$sampleNames <- sampleNames
+        results$numVariants <- nrow(genotypes)
         class(results) <- "stego"
         return(results)
     }
@@ -358,7 +361,7 @@ calculateSMatrix <- function(gt, sampleNames=sampleNames, phased=T, minVariants=
     s_vector <- popResult$s_matrix_dip[row(popResult$s_matrix_dip)>col(popResult$s_matrix_dip)]
     popResult$structurePValue <- ks.test((s_vector-1)/sd(s_vector), "pnorm", alternative = c("less"))$p.value
     popResult$crypticPValue <- popResult$kinships$bonferroniPValue[1]
-    
+    popResult$numFilteredVariants <- numFilteredVariants
     if(!is.na(saveDir)){
         saveRDS(popResult, file=paste0(saveDir,"/",saveFile,".rds"))
     }

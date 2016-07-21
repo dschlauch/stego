@@ -23,7 +23,7 @@ test_that("algorithm runs on toy data", {
     
     
     
-    capture.output(res <- run_stego(toyGenotypes[,rep(c(T,F),100),,with=F]+toyGenotypes[,rep(c(F,T),100),with=F], groups="all.together", phased=F, simFun=cor))
+    capture.output(res <- run_stego(toyGenotypes[,rep(c(T,F),100),,with=F]+toyGenotypes[,rep(c(F,T),100),with=F], groups="all.together", phased=F, simFun=cov))
     expect_equal(res, toyResults$toyUnphasedAllTogether)
     
     labels <- paste("Group",c(LETTERS[rep(1:5,20)]))
